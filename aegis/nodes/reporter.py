@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from aegis.models.state import AegisState, RunEvent
 
@@ -6,12 +6,12 @@ from aegis.models.state import AegisState, RunEvent
 def generate_report(state: AegisState) -> str:
     """Generate a Markdown training report from the current pipeline state."""
     model_name = state.spec.model_name if state.spec else "unknown"
-    timestamp_str = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+    timestamp_str = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
 
     report = f"""# Aegis-ML Training Report
 
 **Run ID:** {model_name.split('/')[-1]}-{timestamp_str}
-**Generated:** {datetime.utcnow().isoformat()}
+**Generated:** {datetime.now(timezone.utc).isoformat()}
 
 ---
 
