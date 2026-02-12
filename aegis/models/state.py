@@ -14,6 +14,9 @@ class TrainingSpec(BaseModel):
     learning_rate: float = 5e-5
     seq_len: int = 512
     target_gpu: str = "a10g"
+    streaming: bool = False
+    max_steps: int = 0  # 0 = use num_epochs, >0 = override with fixed step count
+    trust_remote_code: bool = False
 
 
 class BudgetPolicy(BaseModel):
@@ -42,6 +45,7 @@ class RunEvent(BaseModel):
 
 class AegisState(BaseModel):
     """Complete graph state - immutable updates via .model_copy()."""
+    user_input: Optional[str] = None
     spec: Optional[TrainingSpec] = None
     budget_policy: BudgetPolicy = Field(default_factory=BudgetPolicy)
     cost_estimate: Optional[CostEstimate] = None

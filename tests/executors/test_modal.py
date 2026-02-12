@@ -3,20 +3,96 @@ import pytest
 from aegis.executors.modal_runner import ModalExecutor
 
 
+# ---------------------------------------------------------------------------
+# Construction
+# ---------------------------------------------------------------------------
+
 def test_modal_executor_can_be_created():
     executor = ModalExecutor()
     assert executor is not None
 
 
-def test_modal_executor_generate_stub():
+def test_modal_executor_default_gpu():
     executor = ModalExecutor()
-    spec_code = executor._generate_stub()
-    assert "modal" in spec_code.lower()
-    assert "def run_training" in spec_code
+    assert executor.gpu == "a10g"
 
+
+def test_modal_executor_custom_gpu():
+    executor = ModalExecutor(gpu="a100")
+    assert executor.gpu == "a100"
+
+
+# ---------------------------------------------------------------------------
+# Mock fallback (no Modal token)
+# ---------------------------------------------------------------------------
 
 def test_modal_executor_execute_returns_result():
     executor = ModalExecutor()
     result = executor.execute("print('hello')", "{}")
     assert result["returncode"] == 0
     assert "metrics" in result
+
+
+def test_mock_fallback_without_token(monkeypatch):
+    """Without MODAL_TOKEN_ID the executor should return mock results."""
+    monkeypatch.delenv("MODAL_TOKEN_ID", raising=False)
+    executor = ModalExecutor()
+    result = executor.execute("print('hello')", "{}")
+    assert result["returncode"] == 0
+    assert result["metrics"]["train_loss"] == 1.2
+    assert result["model_path"] == "/tmp/mock_model"
+    assert result["duration_sec"] == 300
+
+
+# ---------------------------------------------------------------------------
+# Metric parsing
+# ---------------------------------------------------------------------------
+
+def test_parse_metrics_valid():
+    stdout = 'Some output\nAEGIS_METRICS:{"train_loss":0.5,"eval_loss":0.7}\nDone'
+    metrics = ModalExecutor._parse_metrics(stdout)
+    assert metrics == {"train_loss": 0.5, "eval_loss": 0.7}
+
+
+def test_parse_metrics_missing():
+    assert ModalExecutor._parse_metrics("no sentinel here") == {}
+
+
+def test_parse_metrics_invalid_json():
+    assert ModalExecutor._parse_metrics("AEGIS_METRICS:{bad json}") == {}
+
+
+# ---------------------------------------------------------------------------
+# Duration parsing
+# ---------------------------------------------------------------------------
+
+def test_parse_duration_valid():
+    assert ModalExecutor._parse_duration("AEGIS_DURATION:123.4") == 123.4
+
+
+def test_parse_duration_missing():
+    assert ModalExecutor._parse_duration("no duration") is None
+
+
+# ---------------------------------------------------------------------------
+# Model path parsing
+# ---------------------------------------------------------------------------
+
+def test_parse_model_path_valid():
+    stdout = "Model saved to /output/llama-lora\nDone"
+    assert ModalExecutor._parse_model_path(stdout) == "/output/llama-lora"
+
+
+def test_parse_model_path_missing():
+    assert ModalExecutor._parse_model_path("nothing here") is None
+
+
+# ---------------------------------------------------------------------------
+# Error handling
+# ---------------------------------------------------------------------------
+
+def test_mock_result_has_required_keys():
+    executor = ModalExecutor()
+    result = executor._mock_execute("code", "{}")
+    required_keys = {"stdout", "stderr", "returncode", "metrics", "duration_sec", "model_path"}
+    assert required_keys.issubset(result.keys())

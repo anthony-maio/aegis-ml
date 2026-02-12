@@ -55,6 +55,18 @@ def test_aegis_state_initialization():
     assert state.max_retries == 3
 
 
+def test_aegis_state_user_input_default():
+    """user_input should default to None."""
+    state = AegisState()
+    assert state.user_input is None
+
+
+def test_aegis_state_user_input_set():
+    """user_input should accept a string."""
+    state = AegisState(user_input="Fine-tune llama with LoRA")
+    assert state.user_input == "Fine-tune llama with LoRA"
+
+
 def test_aegis_state_immutability_pattern():
     """Verify that state updates use model_copy for immutability"""
     state = AegisState(retry_count=0)

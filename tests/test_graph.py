@@ -97,3 +97,40 @@ def test_graph_events_trace():
         assert event.status == "completed", (
             f"Event {event.phase} has status {event.status}: {event.message}"
         )
+
+
+def test_graph_custom_user_input():
+    """Passing user_input should override the default intent string."""
+    graph = build_aegis_graph()
+    config = {"configurable": {"thread_id": "test-custom-input"}}
+    state = AegisState(user_input="Fine-tune llama-3-8b with qlora for 5 epochs")
+
+    result = graph.invoke(state, config=config)
+
+    assert result["spec"] is not None
+    assert result["spec"].method == "qlora"
+    assert result["spec"].num_epochs == 5
+    assert "llama" in result["spec"].model_name.lower() and "3" in result["spec"].model_name
+
+
+def test_graph_remediate_receives_eval_failures():
+    """_wrap_remediate should prefer eval failures over execution stderr."""
+    from aegis.graph import _wrap_remediate
+    from aegis.models.state import TrainingSpec
+
+    spec = TrainingSpec(
+        method="lora",
+        model_name="tinyllama/tinyllama-272m",
+        dataset_path="./data/sample.jsonl",
+    )
+    state = AegisState(
+        spec=spec,
+        execution_result={"stderr": "CUDA out of memory"},
+        eval_result={"passed": False, "failures": ["Loss did not converge: 3.500 > 2.0"]},
+    )
+
+    result = _wrap_remediate(state)
+    # The remediation should have acted on the eval failure (loss), not stderr (OOM)
+    remediate_event = [e for e in result.events if e.phase == "remediate_spec"]
+    assert len(remediate_event) == 1
+    assert "Loss did not converge" in remediate_event[0].data["error"]

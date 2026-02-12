@@ -12,7 +12,7 @@ def test_eval_gate_routing_failed():
         eval_gate_routing(
             AegisState(eval_result={"passed": False, "failures": ["Loss too high"]})
         )
-        == "remediate_spec"
+        == "check_retries"
     )
 
 

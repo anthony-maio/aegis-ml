@@ -1,6 +1,10 @@
 .private/
 .local/
 .claude/
+nul
+.mypy_cache/
+CLAUDE.md
+
 # Python
 __pycache__/
 *.py[cod]

@@ -34,8 +34,9 @@ def generate_report(state: AegisState) -> str:
             f"| Est. Duration | {state.cost_estimate.estimated_duration_min:.1f} min |\n"
         )
     if state.execution_result:
-        duration = state.execution_result.get("duration_sec", 0) / 60
-        report += f"| Actual Duration | {duration:.1f} min |\n"
+        duration_sec = state.execution_result.get("duration_sec")
+        if duration_sec is not None:
+            report += f"| Actual Duration | {duration_sec / 60:.1f} min |\n"
     if state.eval_result:
         status_icon = "PASSED" if state.eval_result.get("passed") else "FAILED"
         report += f"| Status | {status_icon} |\n"

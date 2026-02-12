@@ -11,6 +11,7 @@ from langgraph.checkpoint.memory import MemorySaver
 
 from aegis.models.state import AegisState, RunEvent
 from aegis.nodes.intent import parse_intent_node
+from aegis.nodes.intent_llm import parse_intent_llm
 from aegis.nodes.profiler import estimate_cost_node
 from aegis.nodes.gate import budget_gate_node
 from aegis.nodes.generator import generate_code_node
@@ -21,6 +22,7 @@ from aegis.nodes.reporter import write_report_node
 from aegis.edges.budget import budget_gate_routing, budget_decision_routing
 from aegis.edges.retry import retry_routing
 from aegis.edges.eval import eval_gate_routing
+from aegis.executors.modal_runner import ModalExecutor
 
 
 # ---------------------------------------------------------------------------
@@ -28,7 +30,7 @@ from aegis.edges.eval import eval_gate_routing
 # ---------------------------------------------------------------------------
 
 def execute_node(state: AegisState) -> AegisState:
-    """Stub executor -- returns mock result for MVP."""
+    """Execute training script via Modal (or mock fallback)."""
     if state.generated_code is None:
         event = RunEvent(
             phase="execute",
@@ -37,19 +39,38 @@ def execute_node(state: AegisState) -> AegisState:
         )
         return state.model_copy(update={"events": state.events + [event]})
 
-    mock_result = {
-        "metrics": {"train_loss": 1.2, "eval_loss": 1.5},
-        "model_path": "/tmp/mock_model",
-        "duration_sec": 300,
+    gpu = state.spec.target_gpu if state.spec else "a10g"
+    executor = ModalExecutor(gpu=gpu)
+    spec_json = state.spec.model_dump_json() if state.spec else "{}"
+    raw = executor.execute(state.generated_code, spec_json)
+
+    result = {
+        "metrics": raw.get("metrics", {}),
+        "model_path": raw.get("model_path"),
+        "duration_sec": raw.get("duration_sec"),
+        "stdout": raw.get("stdout", ""),
+        "stderr": raw.get("stderr", ""),
     }
+
+    if raw.get("returncode", -1) != 0:
+        event = RunEvent(
+            phase="execute",
+            status="failed",
+            message=f"Execution failed (rc={raw['returncode']}): {raw.get('stderr', '')[:200]}",
+            data=result,
+        )
+        return state.model_copy(
+            update={"execution_result": result, "events": state.events + [event]}
+        )
+
     event = RunEvent(
         phase="execute",
         status="completed",
-        message="Mock execution completed",
-        data=mock_result,
+        message="Execution completed",
+        data=result,
     )
     return state.model_copy(
-        update={"execution_result": mock_result, "events": state.events + [event]}
+        update={"execution_result": result, "events": state.events + [event]}
     )
 
 
@@ -68,21 +89,23 @@ def check_retries_node(state: AegisState) -> AegisState:
 # ---------------------------------------------------------------------------
 
 def _wrap_parse_intent(state: AegisState) -> AegisState:
-    """Wrap ``parse_intent_node`` for LangGraph (uses default input)."""
-    return parse_intent_node(state, user_input="Fine-tune tinyllama with LoRA")
+    """Wrap intent parser for LangGraph.  Prefers LLM, falls back to rules."""
+    user_input = state.user_input or "Fine-tune tinyllama with LoRA"
+    return parse_intent_llm(state, user_input=user_input)
 
 
 def _wrap_remediate(state: AegisState) -> AegisState:
     """Wrap ``remediate_spec_node`` for LangGraph.
 
-    Extracts a meaningful error message from the most recent execution or
-    evaluation result so that the remediation heuristic can act on it.
+    Extracts a meaningful error message from the most recent evaluation or
+    execution result so that the remediation heuristic can act on it.
+    Eval failures are checked first since they are the most common trigger.
     """
     error_msg = "Generic training failure"
-    if state.execution_result and state.execution_result.get("stderr"):
-        error_msg = state.execution_result["stderr"]
-    elif state.eval_result and state.eval_result.get("failures"):
+    if state.eval_result and state.eval_result.get("failures"):
         error_msg = "; ".join(state.eval_result["failures"])
+    elif state.execution_result and state.execution_result.get("stderr"):
+        error_msg = state.execution_result["stderr"]
     return remediate_spec_node(state, error_message=error_msg)
 
 
