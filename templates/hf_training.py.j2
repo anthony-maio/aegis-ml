@@ -1,0 +1,140 @@
+"""Auto-generated HuggingFace training script for {{ spec.model_name }}."""
+
+from dataclasses import dataclass
+
+from datasets import load_dataset
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    DataCollatorForLanguageModeling,
+    Trainer,
+    TrainingArguments,
+)
+{% if spec.method in ("lora", "qlora") %}
+from peft import LoraConfig, TaskType, get_peft_model
+{% endif %}
+{% if spec.method == "qlora" %}
+from transformers import BitsAndBytesConfig
+{% endif %}
+
+
+@dataclass
+class TrainingConfig:
+    """Training configuration derived from TrainingSpec."""
+
+    model_name: str = "{{ spec.model_name }}"
+    dataset_path: str = "{{ spec.dataset_path }}"
+    method: str = "{{ spec.method }}"
+    num_epochs: int = {{ spec.num_epochs }}
+    micro_batch_size: int = {{ spec.micro_batch_size }}
+    gradient_accumulation_steps: int = {{ spec.gradient_accumulation_steps }}
+    learning_rate: float = {{ spec.learning_rate }}
+    seq_len: int = {{ spec.seq_len }}
+    target_gpu: str = "{{ spec.target_gpu }}"
+
+
+{% if spec.method in ("lora", "qlora") %}
+def setup_lora(model):
+    """Apply LoRA adapters to the model."""
+    lora_config = LoraConfig(
+        r=16,
+        lora_alpha=32,
+        target_modules=["q_proj", "v_proj", "k_proj", "o_proj"],
+        lora_dropout=0.05,
+        bias="none",
+        task_type=TaskType.CAUSAL_LM,
+    )
+    model = get_peft_model(model, lora_config)
+    model.print_trainable_parameters()
+    return model
+
+
+{% endif %}
+def train():
+    """Run the training pipeline."""
+    config = TrainingConfig()
+
+    # Load tokenizer
+    tokenizer = AutoTokenizer.from_pretrained(config.model_name)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
+{% if spec.method == "qlora" %}
+    # Quantization config for QLoRA
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_compute_dtype="float16",
+    )
+    model = AutoModelForCausalLM.from_pretrained(
+        config.model_name,
+        quantization_config=bnb_config,
+        device_map="auto",
+    )
+{% else %}
+    # Load model
+    model = AutoModelForCausalLM.from_pretrained(
+        config.model_name,
+        device_map="auto",
+    )
+{% endif %}
+{% if spec.method in ("lora", "qlora") %}
+
+    # Apply LoRA adapters
+    model = setup_lora(model)
+{% endif %}
+
+    # Load and tokenize dataset
+    dataset = load_dataset("json", data_files=config.dataset_path, split="train")
+
+    def tokenize_fn(examples):
+        return tokenizer(
+            examples["text"],
+            truncation=True,
+            max_length=config.seq_len,
+            padding="max_length",
+        )
+
+    tokenized_dataset = dataset.map(tokenize_fn, batched=True, remove_columns=dataset.column_names)
+
+    # Data collator
+    data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+
+    # Training arguments
+    training_args = TrainingArguments(
+        output_dir="./output/{{ spec.model_name.split('/')[-1] }}-{{ spec.method }}",
+        num_train_epochs=config.num_epochs,
+        per_device_train_batch_size=config.micro_batch_size,
+        gradient_accumulation_steps=config.gradient_accumulation_steps,
+        learning_rate=config.learning_rate,
+        logging_steps=10,
+        save_strategy="epoch",
+        fp16=True,
+        report_to="none",
+    )
+
+    # Initialize Trainer
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=tokenized_dataset,
+        data_collator=data_collator,
+    )
+
+    # Train
+    trainer.train()
+
+    # Save final model
+    trainer.save_model()
+    tokenizer.save_pretrained(training_args.output_dir)
+    print(f"Model saved to {training_args.output_dir}")
+
+
+def main():
+    """Entry point for the training script."""
+    train()
+
+
+if __name__ == "__main__":
+    main()
