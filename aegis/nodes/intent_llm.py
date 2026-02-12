@@ -26,7 +26,7 @@ class ParsedIntent(BaseModel):
     micro_batch_size: int = Field(default=4, ge=1, le=128)
     learning_rate: float = Field(default=5e-5, gt=0)
     seq_len: int = Field(default=512, ge=64, le=8192)
-    target_gpu: str = Field(default="a10g", description="GPU type: t4, a10g, or a100")
+    target_gpu: str = Field(default="a10g", description="GPU type: t4, l4, a10g, l40s, a100-40gb, a100, h100")
     estimated_params_b: float = Field(default=0.0, ge=0, description="Estimated total parameter count in billions (e.g. 0.272 for 272M, 7.0 for 7B). Set to 0 if unknown.")
     is_moe: bool = Field(default=False, description="True if the model is a Mixture-of-Experts architecture")
     streaming: bool = Field(default=False, description="True if the dataset should be streamed (for large datasets >1GB)")

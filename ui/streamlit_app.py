@@ -58,7 +58,16 @@ section[data-testid="stSidebar"] {
 # GPU cost reference ($/hr) for the comparison table
 # ---------------------------------------------------------------------------
 
-GPU_COSTS = {"T4": 0.76, "A10G": 1.10, "A100": 3.22}
+# ($/hr, relative throughput vs T4 for LLM training)
+GPU_SPECS = {
+    "T4":        {"rate": 0.59, "speed": 1.0},
+    "L4":        {"rate": 0.80, "speed": 1.6},
+    "A10G":      {"rate": 1.10, "speed": 2.2},
+    "L40S":      {"rate": 1.95, "speed": 4.0},
+    "A100-40GB": {"rate": 2.10, "speed": 5.5},
+    "A100-80GB": {"rate": 2.50, "speed": 6.0},
+    "H100":      {"rate": 3.95, "speed": 10.0},
+}
 
 # ---------------------------------------------------------------------------
 # Session state initialisation

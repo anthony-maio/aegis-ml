@@ -1,11 +1,17 @@
 import re
 from aegis.models.state import TrainingSpec, CostEstimate
 
-# GPU pricing (USD/second) - source: modal.com/pricing
+# GPU pricing (USD/second) - source: modal.com/pricing (Feb 2026)
 GPU_PRICING = {
-    "a10g": 0.000306,  # $1.10/hr
-    "t4": 0.000126,    # $0.45/hr
-    "a100": 0.000793,  # $2.85/hr
+    "t4": 0.000164,       # $0.59/hr
+    "l4": 0.000222,       # $0.80/hr
+    "a10g": 0.000306,     # $1.10/hr
+    "l40s": 0.000542,     # $1.95/hr
+    "a100-40gb": 0.000583, # $2.10/hr
+    "a100": 0.000694,     # $2.50/hr  (80GB)
+    "h100": 0.001097,     # $3.95/hr
+    "h200": 0.001261,     # $4.54/hr
+    "b200": 0.001736,     # $6.25/hr
 }
 
 # Known model sizes (total params in billions) for quick lookup
