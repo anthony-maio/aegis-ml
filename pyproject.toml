@@ -1,23 +1,16 @@
 [project]
-name = "aegis-ml"
+name = "fitcheck"
 version = "0.1.0"
-description = "Production-Grade AI Reliability Engineer for LLM fine-tuning"
+description = "Know before you train — VRAM estimation for LLM fine-tuning"
 requires-python = ">=3.10"
 dependencies = [
-    "langgraph>=0.2.0",
-    "langchain>=0.3.0",
-    "langchain-openai>=0.2.0",
     "pydantic>=2.0.0",
-    "python-dotenv>=1.0.0",
-    "jinja2>=3.1.0",
-    "modal>=0.64.0",
-    "streamlit>=1.31.0",
+    "huggingface-hub>=0.20.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
-    "pytest-asyncio>=0.23.0",
     "ruff>=0.1.0",
 ]
 
@@ -26,7 +19,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["aegis", "fitcheck"]
+packages = ["fitcheck"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
