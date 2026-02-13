@@ -108,19 +108,26 @@ def _wrap_remediate(state: AegisState) -> AegisState:
 
     Extracts a meaningful error message from the most recent evaluation or
     execution result so that the remediation heuristic can act on it.
-    Eval failures are checked first since they are the most common trigger.
-    Prefers ``extracted_error`` (the actual traceback) over raw stderr.
+
+    Execution errors take priority over eval failures: when training crashes,
+    run_evals sees empty metrics and generates a synthetic "loss didn't
+    converge" failure that masks the real root cause (e.g. missing package).
     """
     error_msg = "Generic training failure"
-    if state.eval_result and state.eval_result.get("failures"):
+
+    # 1. Execution errors are the root cause — check first
+    exec_failed = (
+        state.execution_result
+        and state.execution_result.get("extracted_error")
+    )
+    if exec_failed:
+        error_msg = state.execution_result["extracted_error"]
+    elif state.execution_result and state.execution_result.get("stderr"):
+        error_msg = state.execution_result["stderr"]
+    # 2. Eval failures (only meaningful when execution actually succeeded)
+    elif state.eval_result and state.eval_result.get("failures"):
         error_msg = "; ".join(state.eval_result["failures"])
-    elif state.execution_result:
-        # Prefer extracted traceback over full stderr
-        error_msg = (
-            state.execution_result.get("extracted_error")
-            or state.execution_result.get("stderr")
-            or error_msg
-        )
+
     return remediate_spec_node(state, error_message=error_msg)
 
 

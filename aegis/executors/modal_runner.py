@@ -79,7 +79,7 @@ class ModalExecutor:
 
     def _has_modal_token(self) -> bool:
         """Return True when Modal credentials are available (env var or CLI profile)."""
-        if os.environ.get("MODAL_TOKEN_ID"):
+        if os.environ.get("MODAL_TOKEN_ID") and os.environ.get("MODAL_TOKEN_SECRET"):
             return True
         # Modal CLI stores auth in ~/.modal.toml — check if configured
         try:

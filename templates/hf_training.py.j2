@@ -105,7 +105,8 @@ def train():
         trust_remote_code=True,
     )
 {% else %}
-{% if not spec.dataset_path.startswith('./') and not spec.dataset_path.startswith('/') and '/' in spec.dataset_path %}
+{% set is_local = spec.dataset_path.startswith('./') or spec.dataset_path.startswith('/') or spec.dataset_path.endswith(('.jsonl', '.json', '.csv', '.parquet', '.txt')) %}
+{% if not is_local and '/' in spec.dataset_path %}
     # HuggingFace Hub dataset
     dataset = load_dataset(config.dataset_path, split="train", trust_remote_code=True)
 {% else %}
@@ -132,7 +133,10 @@ def train():
         )
 
 {% if spec.streaming %}
-    tokenized_dataset = dataset.map(tokenize_fn, batched=True, remove_columns=dataset.column_names)
+    # IterableDataset: must peek at first batch for column names
+    first_batch = next(iter(dataset))
+    col_names = list(first_batch.keys())
+    tokenized_dataset = dataset.map(tokenize_fn, batched=True, remove_columns=col_names)
 {% else %}
     tokenized_dataset = dataset.map(tokenize_fn, batched=True, remove_columns=dataset.column_names)
 {% endif %}
@@ -183,8 +187,11 @@ def train():
     # Emit parseable metrics for Aegis orchestrator
     final_metrics = {
         "train_loss": train_output.training_loss,
-        **{k: v for k, v in trainer.state.log_history[-1].items() if "loss" in k},
     }
+    if trainer.state.log_history:
+        final_metrics.update(
+            {k: v for k, v in trainer.state.log_history[-1].items() if "loss" in k}
+        )
     print(f"AEGIS_METRICS:{json.dumps(final_metrics)}")
     print(f"AEGIS_DURATION:{duration_sec:.1f}")
 

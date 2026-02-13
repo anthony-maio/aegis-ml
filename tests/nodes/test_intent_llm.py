@@ -1,9 +1,8 @@
 """Tests for the LLM-based intent parser with mocked LLM calls."""
 
-import pytest
 from unittest.mock import patch, MagicMock
 
-from aegis.models.state import AegisState, TrainingSpec
+from aegis.models.state import AegisState
 from aegis.nodes.intent_llm import parse_intent_llm, ParsedIntent
 
 

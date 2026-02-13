@@ -7,6 +7,7 @@ and a report viewer with download support.
 
 import re
 import time
+from html import escape as html_escape
 import streamlit as st
 
 from aegis.models.state import AegisState
@@ -55,18 +56,32 @@ section[data-testid="stSidebar"] {
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
-# GPU cost reference ($/hr) for the comparison table
+# GPU cost reference — derived from the canonical GPU_PRICING in profilers/cost.py
+# Speed multipliers are relative throughput vs T4 for LLM training.
 # ---------------------------------------------------------------------------
 
-# ($/hr, relative throughput vs T4 for LLM training)
+from aegis.profilers.cost import GPU_PRICING
+
+# Relative training throughput vs T4 (empirical approximation)
+_GPU_SPEED = {
+    "t4": 1.0, "l4": 1.6, "a10g": 2.2, "l40s": 4.0,
+    "a100-40gb": 5.5, "a100": 6.0, "h100": 10.0, "h200": 12.0, "b200": 16.0,
+}
+
+# Display names for the UI (key = lowercase ID matching GPU_PRICING)
+_GPU_DISPLAY = {
+    "t4": "T4", "l4": "L4", "a10g": "A10G", "l40s": "L40S",
+    "a100-40gb": "A100-40GB", "a100": "A100-80GB", "h100": "H100",
+    "h200": "H200", "b200": "B200",
+}
+
 GPU_SPECS = {
-    "T4":        {"rate": 0.59, "speed": 1.0},
-    "L4":        {"rate": 0.80, "speed": 1.6},
-    "A10G":      {"rate": 1.10, "speed": 2.2},
-    "L40S":      {"rate": 1.95, "speed": 4.0},
-    "A100-40GB": {"rate": 2.10, "speed": 5.5},
-    "A100-80GB": {"rate": 2.50, "speed": 6.0},
-    "H100":      {"rate": 3.95, "speed": 10.0},
+    _GPU_DISPLAY.get(k, k.upper()): {
+        "rate": round(v * 3600, 2),  # convert $/sec -> $/hr
+        "speed": _GPU_SPEED.get(k, 1.0),
+        "key": k,  # lowercase key for matching against TrainingSpec.target_gpu
+    }
+    for k, v in GPU_PRICING.items()
 }
 
 # ---------------------------------------------------------------------------
@@ -149,12 +164,12 @@ with st.sidebar:
         ce = state["cost_estimate"]
         # Base duration at the selected GPU's speed
         selected_gpu = state.get("spec", {})
-        selected_gpu_name = getattr(selected_gpu, "target_gpu", "a10g").upper()
+        target_gpu_key = getattr(selected_gpu, "target_gpu", "a10g").lower()
         base_dur_min = ce.estimated_duration_min
-        # Find the speed of the selected GPU to normalize
+        # Find the speed of the selected GPU using the canonical key
         selected_speed = 1.0
-        for gn, gs in GPU_SPECS.items():
-            if gn.lower().replace("-", "") == selected_gpu_name.lower().replace("-", ""):
+        for _gn, gs in GPU_SPECS.items():
+            if gs["key"] == target_gpu_key:
                 selected_speed = gs["speed"]
                 break
 
@@ -317,7 +332,8 @@ PHASE_INFO = {
 
 PHASE_ORDER = [
     "parse_intent", "estimate_cost", "budget_gate", "generate_code",
-    "execute", "run_evals", "eval_gate", "write_report",
+    "execute", "run_evals", "eval_gate", "check_retries",
+    "remediate_spec", "write_report",
 ]
 
 # ---------------------------------------------------------------------------

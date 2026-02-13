@@ -44,12 +44,12 @@ def _estimate_params_b(model_name: str) -> float:
             return size
 
     # Try regex: "7b", "13B", "70b", etc.
-    match = re.search(r"(\d+(?:\.\d+)?)\s*[bB](?:\b|[^a-zA-Z])", model_name)
+    match = re.search(r"(\d+(?:\.\d+)?)\s*[bB](?:\W|$)", model_name)
     if match:
         return float(match.group(1))
 
     # Try regex: "272M", "1.3M", etc.
-    match = re.search(r"(\d+(?:\.\d+)?)\s*[mM](?:\b|[^a-zA-Z])", model_name)
+    match = re.search(r"(\d+(?:\.\d+)?)\s*[mM](?:\W|$)", model_name)
     if match:
         return float(match.group(1)) / 1000.0
 
