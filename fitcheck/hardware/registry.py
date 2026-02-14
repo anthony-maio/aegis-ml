@@ -88,9 +88,7 @@ def get_hardware(gpu: str) -> HardwareSpec:
         return _GPU_REGISTRY[key]
 
     available = sorted(set(list(_GPU_REGISTRY.keys()) + list(_ALIASES.keys())))
-    raise KeyError(
-        f"Unknown GPU '{gpu}'. Available: {', '.join(available)}"
-    )
+    raise KeyError(f"Unknown GPU '{gpu}'. Available: {', '.join(available)}")
 
 
 def list_hardware() -> list[HardwareSpec]:

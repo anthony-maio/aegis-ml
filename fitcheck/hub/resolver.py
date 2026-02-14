@@ -8,7 +8,6 @@ VRAM estimation.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Any
 
 from fitcheck.models.profiles import ModelProfile
@@ -87,8 +86,7 @@ def _config_to_profile(model_id: str, config: dict[str, Any]) -> ModelProfile:
     if family is None:
         supported = sorted(_ARCHITECTURE_FAMILIES.keys())
         raise ValueError(
-            f"Unsupported architecture '{arch_str}' for model '{model_id}'. "
-            f"Supported: {supported}"
+            f"Unsupported architecture '{arch_str}' for model '{model_id}'. Supported: {supported}"
         )
 
     # Extract dimensions (handle varying key names across model configs)
@@ -198,10 +196,7 @@ def _compute_param_count(
     if num_experts is not None and num_experts > 1:
         router_per_layer = hidden_size * num_experts
         layer_params = (
-            attn_per_layer
-            + num_experts * mlp_per_layer
-            + router_per_layer
-            + norms_per_layer
+            attn_per_layer + num_experts * mlp_per_layer + router_per_layer + norms_per_layer
         )
     else:
         layer_params = attn_per_layer + mlp_per_layer + norms_per_layer

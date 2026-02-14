@@ -126,12 +126,12 @@ class PlanReport(BaseModel):
     vocab_size: int
     num_layers: int
 
-    dataset_source: str
-    dataset_rows: int
-    dataset_format: str
+    dataset_source: str = "none"
+    dataset_rows: int = 0
+    dataset_format: str = "unknown"
     seq_len_stats: dict[str, float] | None = None
-    seq_len_used: int
-    seq_len_reasoning: str
+    seq_len_used: int = 512
+    seq_len_reasoning: str = "default"
 
     hardware_name: str
     total_vram_gb: float
@@ -139,9 +139,9 @@ class PlanReport(BaseModel):
     usable_vram_gb: float
 
     method: str
-    trainable_params: int
-    trainable_pct: float
-    samples_per_epoch: float
+    trainable_params: int = 0
+    trainable_pct: float = 0.0
+    samples_per_epoch: float = 0.0
 
     solver_result: SolverResult
 

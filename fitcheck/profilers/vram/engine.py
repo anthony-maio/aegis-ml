@@ -10,11 +10,10 @@ from __future__ import annotations
 from fitcheck.models.profiles import (
     ModelProfile,
     HardwareSpec,
-    DatasetProfile,
     TrainingMethod,
     LoRAConfig,
 )
-from fitcheck.models.results import VRAMBreakdown, ComponentEstimate
+from fitcheck.models.results import VRAMBreakdown
 from fitcheck.profilers.vram import components
 from fitcheck.profilers.vram.families.base import ArchitectureFamily
 from fitcheck.profilers.vram.families.llama import LlamaFamily
@@ -95,9 +94,7 @@ class VRAMEstimator:
         if custom_weights is not None:
             weight_est = custom_weights
         else:
-            weight_est = components.weight_memory(
-                model, method, training_dtype, lora_cfg
-            )
+            weight_est = components.weight_memory(model, method, training_dtype, lora_cfg)
 
         # --- Component 2: Optimizer states ---
         trainable = components.get_trainable_params(model, method, lora_cfg)
@@ -107,14 +104,10 @@ class VRAMEstimator:
         gradient_est = components.gradient_memory(trainable, training_dtype)
 
         # --- Component 4: Activations (architecture-specific) ---
-        activation_est = family.activation_memory(
-            model, batch_size, seq_len, grad_checkpointing
-        )
+        activation_est = family.activation_memory(model, batch_size, seq_len, grad_checkpointing)
 
         # --- Component 5: Logits buffer ---
-        logits_est = components.logits_buffer_memory(
-            batch_size, seq_len, model.vocab_size
-        )
+        logits_est = components.logits_buffer_memory(batch_size, seq_len, model.vocab_size)
 
         # --- Component 6: Eval KV-cache spike (optional) ---
         eval_spike = None

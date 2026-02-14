@@ -4,7 +4,6 @@ These are the integration tests that verify the full estimation pipeline
 produces numbers in the right ballpark for real-world configurations.
 """
 
-import pytest
 from fitcheck.models.profiles import (
     ModelProfile,
     HardwareSpec,
