@@ -6,3 +6,7 @@ burn a single GPU-hour.
 """
 
 __version__ = "0.1.0"
+
+from fitcheck.api import plan
+
+__all__ = ["plan", "__version__"]

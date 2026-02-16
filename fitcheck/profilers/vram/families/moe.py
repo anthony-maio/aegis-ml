@@ -84,8 +84,10 @@ class MoEFamily:
         mlp_gb = mlp_stored * effective_layers / (1024**3)
         router_gb = router_stored * effective_layers / (1024**3)
         total_gb = total_bytes / (1024**3)
+        savings_pct = (1 - k / n_experts) * 100
         desc = (
-            f"MoE: top-{k} of {n_experts} experts active per token. "
+            f"MoE: top-{k} of {n_experts} experts active per token "
+            f"({savings_pct:.0f}% MLP savings vs all-experts-active). "
             f"bs={b}, seq={s}, {n_layers} layers{desc_suffix}: "
             f"attn={attn_gb:.2f}GB + mlp={mlp_gb:.2f}GB ({k} experts) "
             f"+ router={router_gb:.3f}GB = {total_gb:.2f}GB"

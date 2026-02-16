@@ -190,6 +190,16 @@ class TestMoEActivationMemory:
         assert "top-2" in est.description
         assert "8 experts" in est.description
 
+    def test_description_includes_savings_percentage(self):
+        """Mixtral top-2 of 8: should show 75% MLP savings in description.
+
+        With 2 of 8 experts active, (1 - 2/8) * 100 = 75% savings.
+        """
+        family = MoEFamily()
+        model = _make_mixtral_8x7b()
+        est = family.activation_memory(model, 1, 1024, grad_checkpointing=False)
+        assert "75% MLP savings" in est.description
+
 
 # ---------------------------------------------------------------------------
 # KV-cache eval
